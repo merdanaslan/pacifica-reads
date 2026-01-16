@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { OutputData, PositionHistoryItem, FundingHistoryItem, PortfolioDataPoint } from './types.js';
+import { OutputData, PositionHistoryItem, FundingHistoryItem, PortfolioDataPoint, GroupedTrade, GroupedPosition } from './types.js';
 
 export class OutputFormatter {
   private outputDir: string;
@@ -18,6 +18,15 @@ export class OutputFormatter {
       fs.mkdirSync(this.outputDir, { recursive: true });
     }
 
+    // Determine which timestamp field to convert based on endpoint
+    let timestampField = 'created_at';
+    if (endpoint.includes('portfolio')) {
+      timestampField = 'timestamp';
+    }
+
+    // Add readable timestamps to all data items
+    const dataWithReadableTimestamps = this.addReadableTimestamps(data, timestampField);
+
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const filename = `${endpoint}-${walletAddress.substring(0, 8)}-${timestamp}.json`;
     const filepath = path.join(this.outputDir, filename);
@@ -26,12 +35,70 @@ export class OutputFormatter {
       wallet_address: walletAddress,
       fetch_timestamp: new Date().toISOString(),
       endpoint,
-      total_records: data.length,
-      data,
+      total_records: dataWithReadableTimestamps.length,
+      data: dataWithReadableTimestamps,
     };
 
     fs.writeFileSync(filepath, JSON.stringify(outputData, null, 2));
 
+    return filepath;
+  }
+
+  private addReadableTimestamps<T>(data: T[], timestampField: string): T[] {
+    return data.map(item => ({
+      ...item,
+      [`${timestampField}_readable`]: new Date((item as any)[timestampField]).toISOString()
+    }));
+  }
+
+  async writeGroupedTradesFile(
+    walletAddress: string,
+    trades: GroupedTrade[]
+  ): Promise<string> {
+    if (!fs.existsSync(this.outputDir)) {
+      fs.mkdirSync(this.outputDir, { recursive: true });
+    }
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `grouped_trades-${walletAddress.substring(0, 8)}-${timestamp}.json`;
+    const filepath = path.join(this.outputDir, filename);
+
+    const outputData = {
+      wallet_address: walletAddress,
+      fetch_timestamp: new Date().toISOString(),
+      endpoint: 'grouped_trades',
+      total_trades: trades.length,
+      total_fills: trades.reduce((sum, t) => sum + t.fill_count, 0),
+      data: trades,
+    };
+
+    fs.writeFileSync(filepath, JSON.stringify(outputData, null, 2));
+    return filepath;
+  }
+
+  async writeGroupedPositionsFile(
+    walletAddress: string,
+    positions: GroupedPosition[]
+  ): Promise<string> {
+    if (!fs.existsSync(this.outputDir)) {
+      fs.mkdirSync(this.outputDir, { recursive: true });
+    }
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const filename = `grouped_positions-${walletAddress.substring(0, 8)}-${timestamp}.json`;
+    const filepath = path.join(this.outputDir, filename);
+
+    const outputData = {
+      wallet_address: walletAddress,
+      fetch_timestamp: new Date().toISOString(),
+      endpoint: 'grouped_positions',
+      total_positions: positions.length,
+      open_positions: positions.filter(p => p.status === 'open').length,
+      closed_positions: positions.filter(p => p.status === 'closed').length,
+      data: positions,
+    };
+
+    fs.writeFileSync(filepath, JSON.stringify(outputData, null, 2));
     return filepath;
   }
 
@@ -115,6 +182,52 @@ export class OutputFormatter {
     console.log(
       `Date Range: ${new Date(minTimestamp).toISOString()} to ${new Date(maxTimestamp).toISOString()}`
     );
+  }
+
+  printGroupedTradesSummary(trades: GroupedTrade[]): void {
+    console.log(`\nGrouped Trades Summary`);
+    console.log(`${'='.repeat(50)}`);
+    console.log(`Total Trades: ${trades.length}`);
+    console.log(`Total Fills: ${trades.reduce((sum, t) => sum + t.fill_count, 0)}`);
+
+    const totalPnl = trades.reduce((sum, t) => sum + parseFloat(t.total_pnl), 0);
+    console.log(`Total PnL: ${totalPnl > 0 ? '+' : ''}$${totalPnl.toFixed(2)}`);
+
+    console.log(`\nSample trades (first 10):`);
+    console.table(trades.slice(0, 10).map(t => ({
+      trade_id: t.trade_id,
+      symbol: t.symbol,
+      side: t.side,
+      amount: t.total_amount,
+      avg_price: t.average_price,
+      fills: t.fill_count,
+      pnl: t.total_pnl,
+      time: t.first_fill_time_readable,
+    })));
+  }
+
+  printGroupedPositionsSummary(positions: GroupedPosition[]): void {
+    console.log(`\nGrouped Positions Summary`);
+    console.log(`${'='.repeat(50)}`);
+    console.log(`Total Positions: ${positions.length}`);
+    console.log(`Open: ${positions.filter(p => p.status === 'open').length}`);
+    console.log(`Closed: ${positions.filter(p => p.status === 'closed').length}`);
+
+    const totalPnl = positions.reduce((sum, p) => sum + parseFloat(p.total_pnl), 0);
+    console.log(`Total PnL: ${totalPnl > 0 ? '+' : ''}$${totalPnl.toFixed(2)}`);
+
+    console.log(`\nSample positions (first 10):`);
+    console.table(positions.slice(0, 10).map(p => ({
+      symbol: p.symbol,
+      direction: p.direction,
+      size: p.position_size,
+      entry: p.entry_price,
+      exit: p.exit_price,
+      pnl: p.total_pnl,
+      pnl_pct: p.pnl_percentage + '%',
+      duration_hrs: p.duration_hours,
+      trades: p.trade_count,
+    })));
   }
 
   static printHeader(

@@ -1,6 +1,7 @@
 import { FetchConfig, PositionHistoryItem, FundingHistoryItem, PortfolioDataPoint } from './types.js';
 import { PacificaFetcher } from './fetcher.js';
 import { OutputFormatter } from './formatters.js';
+import { TradeGrouper } from './grouper.js';
 
 function parseCliArgs(): FetchConfig {
   const args = process.argv.slice(2);
@@ -52,6 +53,10 @@ function parseCliArgs(): FetchConfig {
         config.limit = parseInt(nextArg);
         i++;
         break;
+      case '--group':
+        config.groupingMode = nextArg as 'none' | 'trades' | 'positions' | 'both';
+        i++;
+        break;
       case '--help':
         printHelp();
         process.exit(0);
@@ -92,12 +97,15 @@ Optional Arguments:
   --time-range <range>      Portfolio time range: 1d|7d|14d|30d|all (default: all)
   --symbol <symbol>         Filter by symbol (positions only)
   --limit <number>          Records per page (default: 100)
+  --group <mode>            Group positions: none|trades|positions|both (default: none)
   --help                    Show this help message
 
 Examples:
   npm start -- --wallet BrZp5bidJ3WUvceSq7X78bhjTfZXeezzGvGEV4hAYKTa
   npm start -- --wallet <address> --output console
   npm start -- --wallet <address> --endpoints positions --symbol BTC
+  npm start -- --wallet <address> --endpoints positions --group trades
+  npm start -- --wallet <address> --endpoints positions --group both
 `);
 }
 
@@ -175,11 +183,46 @@ async function main(): Promise<void> {
       const data = await fetchPositionsHistory(fetcher, config);
       totalRecords += data.length;
 
+      // Always save raw data
       if (config.output === 'json') {
         const filepath = await formatter.writeJsonFile(config.wallet, 'positions_history', data);
-        console.log(`Saved to: ${filepath}\n`);
+        console.log(`Raw positions saved: ${filepath}\n`);
       } else {
         formatter.printConsoleOutput('Position History', data, config.wallet);
+      }
+
+      // Apply grouping if requested
+      const grouper = new TradeGrouper();
+
+      if (config.groupingMode === 'trades' || config.groupingMode === 'both') {
+        console.log('Grouping trades by order...');
+        const groupedTrades = grouper.groupByOrder(data);
+
+        if (config.output === 'json') {
+          const tradesFile = await formatter.writeGroupedTradesFile(
+            config.wallet,
+            groupedTrades
+          );
+          console.log(`Grouped trades saved: ${tradesFile}\n`);
+        } else {
+          formatter.printGroupedTradesSummary(groupedTrades);
+        }
+
+        // Position grouping requires trades as input
+        if (config.groupingMode === 'both') {
+          console.log('Grouping positions...');
+          const groupedPositions = grouper.groupByPosition(groupedTrades);
+
+          if (config.output === 'json') {
+            const positionsFile = await formatter.writeGroupedPositionsFile(
+              config.wallet,
+              groupedPositions
+            );
+            console.log(`Grouped positions saved: ${positionsFile}\n`);
+          } else {
+            formatter.printGroupedPositionsSummary(groupedPositions);
+          }
+        }
       }
     }
 
