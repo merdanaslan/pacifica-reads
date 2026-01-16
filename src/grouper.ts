@@ -233,6 +233,9 @@ export class TradeGrouper {
     // Position size is max of entry/exit amounts
     const positionSize = Math.max(totalEntryAmount, totalExitAmount);
 
+    // Notional value (position size in USD)
+    const notionalValue = positionSize * entryPrice;
+
     // PnL percentage
     const pnlPct = entryPrice > 0
       ? ((direction === 'long' ? exitPrice - entryPrice : entryPrice - exitPrice) / entryPrice * 100)
@@ -254,6 +257,7 @@ export class TradeGrouper {
       entry_price: entryPrice.toFixed(2),
       exit_price: exitPrice > 0 ? exitPrice.toFixed(2) : 'N/A',
       position_size: positionSize.toFixed(8),
+      notional_value: notionalValue.toFixed(2),
       total_pnl: totalPnl.toFixed(6),
       total_fees: totalFees.toFixed(8),
       pnl_percentage: pnlPct.toFixed(2),

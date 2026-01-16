@@ -101,6 +101,7 @@ export interface GroupedPosition {
   entry_price: string;             // Weighted avg entry price
   exit_price: string;              // Weighted avg exit price
   position_size: string;           // Maximum position size reached
+  notional_value: string;          // Position size in USD (position_size * entry_price)
   total_pnl: string;               // Sum of all trade PnLs
   total_fees: string;              // Sum of all fees
   pnl_percentage: string;          // (exit - entry) / entry * 100
