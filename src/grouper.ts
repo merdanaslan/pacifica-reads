@@ -61,7 +61,7 @@ export class TradeGrouper {
       symbol: first.symbol,
       side: first.side,
       total_amount: totalAmount.toFixed(8),
-      average_price: avgPrice.toFixed(2),
+      average_price: avgPrice.toFixed(6),
       total_value: totalValue.toFixed(2),
       total_fee: totalFee.toFixed(8),
       total_pnl: totalPnl.toFixed(6),
@@ -237,7 +237,7 @@ export class TradeGrouper {
     const notionalValue = positionSize * entryPrice;
 
     // PnL percentage
-    const pnlPct = entryPrice > 0
+    const pnlPct = exitPrice > 0 && entryPrice > 0
       ? ((direction === 'long' ? exitPrice - entryPrice : entryPrice - exitPrice) / entryPrice * 100)
       : 0;
 
@@ -254,13 +254,13 @@ export class TradeGrouper {
       opened_at_readable: new Date(openTime).toISOString(),
       closed_at_readable: new Date(closeTime).toISOString(),
       duration_hours: parseFloat(durationHours.toFixed(2)),
-      entry_price: entryPrice.toFixed(2),
-      exit_price: exitPrice > 0 ? exitPrice.toFixed(2) : 'N/A',
+      entry_price: entryPrice.toFixed(6),
+      exit_price: exitPrice > 0 ? exitPrice.toFixed(6) : 'N/A',
       position_size: positionSize.toFixed(8),
       notional_value: notionalValue.toFixed(2),
       total_pnl: totalPnl.toFixed(6),
       total_fees: totalFees.toFixed(8),
-      pnl_percentage: pnlPct.toFixed(2),
+      pnl_percentage: exitPrice > 0 ? pnlPct.toFixed(2) : 'N/A',
       trades: allTrades,
       trade_count: allTrades.length,
       status: 'closed',
