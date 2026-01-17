@@ -9,6 +9,8 @@ A TypeScript CLI tool to fetch all historical perps trading data from the Pacifi
   - **Position History**: Trade executions and position data
   - **Funding History**: Funding rate payments
   - **Portfolio History**: Account equity and PnL over time
+  - **Order History**: Complete order lifecycle (placements, cancellations, modifications)
+  - **Balance History**: Account balance changes over time
 - Rate limiting with automatic retry on errors
 - Two output modes: JSON files or console output
 - Filtering by symbol, time range, and date
@@ -73,6 +75,59 @@ npm start -- --wallet <YOUR_WALLET_ADDRESS> --endpoints portfolio --time-range 7
 npm start -- --wallet <YOUR_WALLET_ADDRESS> --output-dir ./my-data
 ```
 
+### Grouping Modes
+
+By default, position data is automatically grouped into trades and complete positions:
+
+```bash
+# Default: auto-group into trades and positions
+npm start -- --wallet <YOUR_WALLET_ADDRESS> --endpoints positions
+```
+
+To get raw position history only (no grouping):
+
+```bash
+npm start -- --wallet <YOUR_WALLET_ADDRESS> --endpoints positions --group none
+```
+
+To group into trades only (not positions):
+
+```bash
+npm start -- --wallet <YOUR_WALLET_ADDRESS> --endpoints positions --group trades
+```
+
+## Available Endpoints
+
+The tool can fetch 5 types of historical data:
+
+### positions
+Trade executions and fills with PnL, fees, and entry/exit details.
+
+### funding
+Funding rate payments for open positions over time.
+
+### portfolio
+Account equity snapshots (balance + unrealized PnL) over time.
+
+### orders
+Complete order lifecycle including placements, cancellations, modifications, stop losses, and take profits. Shows orders that were placed but cancelled before filling, partial fills vs full fills, order adjustments, and rejected orders.
+
+### balance
+Raw USD balance changes tracking deposits, withdrawals, and settled PnL. Separate from portfolio equity which includes unrealized PnL.
+
+Examples:
+
+```bash
+# Fetch all data types (default)
+npm start -- --wallet <address>
+
+# Fetch only trades and orders
+npm start -- --wallet <address> --endpoints positions,orders
+
+# Fetch only balance history
+npm start -- --wallet <address> --endpoints balance
+```
+
 ## Command-Line Arguments
 
 ### Required
@@ -81,12 +136,16 @@ npm start -- --wallet <YOUR_WALLET_ADDRESS> --output-dir ./my-data
 ### Optional
 - `--output <json|console>` - Output format (default: json)
 - `--output-dir <path>` - Output directory for JSON files (default: ./output)
-- `--endpoints <csv>` - Comma-separated endpoints: positions,funding,portfolio (default: all)
-- `--start-time <ms>` - Start time in milliseconds (positions only)
-- `--end-time <ms>` - End time in milliseconds (positions only)
+- `--endpoints <csv>` - Comma-separated endpoints: positions,funding,portfolio,orders,balance (default: all)
+- `--start-time <ms>` - Start time in milliseconds (positions, orders only)
+- `--end-time <ms>` - End time in milliseconds (positions, orders only)
 - `--time-range <range>` - Portfolio time range: 1d|7d|14d|30d|all (default: all)
-- `--symbol <symbol>` - Filter by symbol (positions only)
+- `--symbol <symbol>` - Filter by symbol (positions, orders only)
 - `--limit <number>` - Records per page (default: 100)
+- `--group <mode>` - Grouping mode for positions: none|trades|both (default: both)
+  - `none`: Raw position history only
+  - `trades`: Group fills by order_id into complete trades
+  - `both`: Group fills into trades, then trades into complete positions
 - `--help` - Show help message
 
 ## Output
@@ -157,6 +216,8 @@ Date Range: 2025-06-15 to 2026-01-16
 - `GET /api/v1/positions/history` - Position/trade history
 - `GET /api/v1/funding/history` - Funding payments
 - `GET /api/v1/portfolio` - Account equity history
+- `GET /api/v1/orders/history` - Order lifecycle data
+- `GET /api/v1/account/balance/history` - Account balance changes
 
 Base URL: `https://api.pacifica.fi/api/v1`
 

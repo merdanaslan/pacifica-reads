@@ -45,6 +45,38 @@ export interface PortfolioDataPoint {
   timestamp_readable?: string;
 }
 
+// Order History Item
+export interface OrderHistoryItem {
+  order_id: number;
+  client_order_id?: string;
+  symbol: string;
+  side: string;
+  initial_price?: string;
+  average_filled_price?: string;
+  amount: string;
+  filled_amount: string;
+  order_status: string;
+  order_type: string;
+  stop_price?: string;
+  stop_parent_order_id?: number;
+  reduce_only: boolean;
+  reason?: string;
+  created_at: number;
+  updated_at: number;
+  created_at_readable?: string;
+  updated_at_readable?: string;
+}
+
+// Account Balance History Item
+export interface BalanceHistoryItem {
+  amount: string;
+  balance: string;
+  pending_balance: string;
+  event_type: string;
+  created_at: number;
+  created_at_readable?: string;
+}
+
 // Individual fill within a trade (same as PositionHistoryItem but used in nested context)
 export interface FillEvent {
   history_id: number;

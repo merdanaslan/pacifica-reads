@@ -6,9 +6,11 @@ const MAX_RETRIES = 3;
 
 export class PacificaFetcher {
   private rateLimiter: RateLimiter;
+  private silent: boolean;
 
-  constructor() {
+  constructor(silent: boolean = false) {
     this.rateLimiter = new RateLimiter();
+    this.silent = silent;
   }
 
   async fetchAllPages<T>(
@@ -37,7 +39,9 @@ export class PacificaFetcher {
       allData.push(...response.data);
       pageCount++;
 
-      console.log(`  Page ${pageCount}: ${response.data.length} records`);
+      if (!this.silent) {
+        console.log(`  Page ${pageCount}: ${response.data.length} records`);
+      }
 
       cursor = response.next_cursor;
     } while (cursor && cursor !== '');
@@ -58,7 +62,9 @@ export class PacificaFetcher {
 
       if (response.status === 429) {
         const waitTime = Math.pow(2, attempt) * 1000;
-        console.warn(`  Rate limited (429). Waiting ${waitTime}ms... (Attempt ${attempt}/${MAX_RETRIES})`);
+        if (!this.silent) {
+          console.warn(`  Rate limited (429). Waiting ${waitTime}ms... (Attempt ${attempt}/${MAX_RETRIES})`);
+        }
         await this.sleep(waitTime);
 
         if (attempt < MAX_RETRIES) {
@@ -68,7 +74,9 @@ export class PacificaFetcher {
       }
 
       if (response.status >= 500) {
-        console.warn(`  Server error (${response.status}). Retry ${attempt}/${MAX_RETRIES}`);
+        if (!this.silent) {
+          console.warn(`  Server error (${response.status}). Retry ${attempt}/${MAX_RETRIES}`);
+        }
         await this.sleep(1000 * attempt);
 
         if (attempt < MAX_RETRIES) {
@@ -86,7 +94,9 @@ export class PacificaFetcher {
       return data;
     } catch (error) {
       if (attempt < MAX_RETRIES && error instanceof Error && error.message.includes('fetch')) {
-        console.warn(`  Network error. Retry ${attempt}/${MAX_RETRIES}`);
+        if (!this.silent) {
+          console.warn(`  Network error. Retry ${attempt}/${MAX_RETRIES}`);
+        }
         await this.sleep(1000 * attempt);
         return this.fetchWithRetry<T>(url, attempt + 1);
       }
