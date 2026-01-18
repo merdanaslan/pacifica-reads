@@ -2,6 +2,8 @@ import { FetchConfig, PositionHistoryItem, FundingHistoryItem, PortfolioDataPoin
 import { PacificaFetcher } from './fetcher.js';
 import { OutputFormatter } from './formatters.js';
 import { TradeGrouper } from './grouper.js';
+import * as fs from 'fs';
+import * as path from 'path';
 
 function parseCliArgs(): FetchConfig {
   const args = process.argv.slice(2);
@@ -219,6 +221,15 @@ async function main(): Promise<void> {
       const data = await fetchBalanceHistory(fetcher, config);
       output.balance = data;
     }
+
+    // Ensure output directory exists
+    if (!fs.existsSync(config.outputDir)) {
+      fs.mkdirSync(config.outputDir, { recursive: true });
+    }
+
+    // Write complete output to file
+    const outputFilePath = path.join(config.outputDir, `return_${config.wallet}.json`);
+    fs.writeFileSync(outputFilePath, JSON.stringify(output, null, 2));
 
     // Output raw JSON to stdout
     console.log(JSON.stringify(output, null, 2));
